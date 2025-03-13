@@ -7,123 +7,136 @@ import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
-
 import java.util.ArrayList;
 
 public class StopwatchActivity extends AppCompatActivity {
 
     private Handler handler = new Handler();
-    private int seconds = 0;
-    private boolean isRunning = false; // Para controlar el estado del cronómetro
-    private TextView timerTextView;
-    private ArrayList<String> lapTimes; // Lista para almacenar los tiempos de las vueltas
-    private ArrayAdapter<String> adapter; // Adaptador para mostrar las vueltas
-    private int lapCount = 0; // Contador de las vueltas
+    private int segundos = 0;
+    private boolean ejecutando = false;
+    private TextView tiempoTextView;
+    private ArrayList<String> tiempoVueltas;
+    private ArrayAdapter<String> adapter;
+    private int contadorVueltas = 0;
+    private int tiempoUltimaVuelta = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.layout);
 
-        timerTextView = findViewById(R.id.timerTextView);
-        lapTimes = new ArrayList<>();
+        tiempoTextView = findViewById(R.id.tiempoTextView);
+        tiempoVueltas = new ArrayList<>();
         ListView lapsListView = findViewById(R.id.lapsListView);
 
-        // Configuración del ListView para mostrar las vueltas
-        adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, lapTimes);
+        adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, tiempoVueltas);
         lapsListView.setAdapter(adapter);
 
-        // Recuperar el estado guardado si la actividad es recreada
         if (savedInstanceState != null) {
-            seconds = savedInstanceState.getInt("seconds");
-            lapTimes = savedInstanceState.getStringArrayList("lapTimes");
-            lapCount = savedInstanceState.getInt("lapCount");
+            segundos = savedInstanceState.getInt("segundos");
+            tiempoVueltas = savedInstanceState.getStringArrayList("tiempoVueltas");
+            contadorVueltas = savedInstanceState.getInt("contadorVueltas");
+            tiempoUltimaVuelta = savedInstanceState.getInt("tiempoUltimaVuelta", 0);
             updateTimerDisplay();
         }
 
-        Button startButton = findViewById(R.id.startButton);
-        Button stopButton = findViewById(R.id.stopButton);
-        Button lapButton = findViewById(R.id.lapButton);
+        Button btnIniciar = findViewById(R.id.btnIniciar);
+        Button btnParar = findViewById(R.id.btnParar);
+        Button btnVuelta = findViewById(R.id.btnVuelta);
+        Button btnResetear = findViewById(R.id.btnResetear);
 
-        startButton.setOnClickListener(v -> startTimer());
-        stopButton.setOnClickListener(v -> stopTimer());
-        lapButton.setOnClickListener(v -> recordLap());
+        btnIniciar.setOnClickListener(v -> iniciarTiempo());
+        btnParar.setOnClickListener(v -> pararTiempo());
+        btnVuelta.setOnClickListener(v -> guardarVuelta());
+        btnResetear.setOnClickListener(v -> resetearTiempo()); 
     }
 
-    // Método para iniciar el cronómetro
-    private void startTimer() {
-        if (!isRunning) {
-            isRunning = true;
+    private void iniciarTiempo() {
+        if (!ejecutando) {
+            ejecutando = true;
             handler.postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    if (isRunning) {
-                        seconds++;
+                    if (ejecutando) {
+                        segundos++;
                         updateTimerDisplay();
-                        handler.postDelayed(this, 1000);  // Actualiza cada segundo
+                        handler.postDelayed(this, 1000);
                     }
                 }
             }, 1000);
         }
     }
 
-    // Método para detener el cronómetro
-    private void stopTimer() {
-        isRunning = false;
+    private void pararTiempo() {
+        ejecutando = false;
     }
 
-    // Método para registrar una vuelta
-    private void recordLap() {
-        if (lapCount < 5) {
-            int minutes = seconds / 60;
-            int remainingSeconds = seconds % 60;
-            String lapTime = String.format("Lap %d: %02d:%02d", lapCount + 1, minutes, remainingSeconds);
-            lapTimes.add(lapTime);
-            lapCount++;
+    private void guardarVuelta() {
+        if (contadorVueltas < 5) {
+            int tiempoVuelta = segundos - tiempoUltimaVuelta;
+            tiempoUltimaVuelta = segundos;
+
+            int minutos = segundos / 60;
+            int segundosRestantes = segundos % 60;
+            int minutosVuelta = tiempoVuelta / 60;
+            int segundosVuelta = tiempoVuelta % 60;
+
+            String lapEntry = String.format("Vuelta %d: %02d:%02d (+%02d:%02d)",
+                    contadorVueltas + 1, minutos, segundosRestantes, minutosVuelta, segundosVuelta);
+
+            tiempoVueltas.add(lapEntry);
+            contadorVueltas++;
             adapter.notifyDataSetChanged();
         }
 
-        if (lapCount == 5) {
-            stopTimer();
-            // Al completar 5 vueltas, mostramos los tiempos parciales
-            showLapTimes();
+        if (contadorVueltas == 5) {
+            pararTiempo();
+            showtiempoVueltas();
         }
     }
 
-    // Mostrar los tiempos parciales
-    private void showLapTimes() {
-        StringBuilder lapReport = new StringBuilder("Lap Times:\n");
-        for (String lapTime : lapTimes) {
-            lapReport.append(lapTime).append("\n");
-        }
-        // Puedes mostrar el reporte de las vueltas de la forma que prefieras, como en un Toast o un AlertDialog
-        System.out.println(lapReport.toString());  // Solo para pruebas en consola
+    private void resetearTiempo() {
+        ejecutando = false;
+        segundos = 0;
+        contadorVueltas = 0;
+        tiempoUltimaVuelta = 0;
+        tiempoVueltas.clear();
+        adapter.notifyDataSetChanged();
+        updateTimerDisplay();
     }
 
-    // Actualiza la interfaz de usuario con el tiempo transcurrido
+    private void showtiempoVueltas() {
+        StringBuilder lapReport = new StringBuilder("Tiempo vuelta:\n");
+        for (String tiempoVuelta : tiempoVueltas) {
+            lapReport.append(tiempoVuelta).append("\n");
+        }
+        System.out.println(lapReport.toString());
+    }
+
     private void updateTimerDisplay() {
-        int minutes = seconds / 60;
-        int remainingSeconds = seconds % 60;
+        int minutos = segundos / 60;
+        int segundosRestantes = segundos % 60;
 
-        String time = String.format("%02d:%02d", minutes, remainingSeconds);
-        timerTextView.setText(time);
+        String time = String.format("%02d:%02d", minutos, segundosRestantes);
+        tiempoTextView.setText(time);
     }
 
     @Override
     public void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        outState.putInt("seconds", seconds); // Guardar el estado del cronómetro
-        outState.putStringArrayList("lapTimes", lapTimes); // Guardar los tiempos de las vueltas
-        outState.putInt("lapCount", lapCount); // Guardar el contador de vueltas
+        outState.putInt("segundos", segundos);
+        outState.putStringArrayList("tiempoVueltas", tiempoVueltas);
+        outState.putInt("contadorVueltas", contadorVueltas);
+        outState.putInt("tiempoUltimaVuelta", tiempoUltimaVuelta);
     }
 
     @Override
     public void onRestoreInstanceState(Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
-        seconds = savedInstanceState.getInt("seconds");
-        lapTimes = savedInstanceState.getStringArrayList("lapTimes");
-        lapCount = savedInstanceState.getInt("lapCount");
-        updateTimerDisplay();  // Recuperar el tiempo guardado
+        segundos = savedInstanceState.getInt("segundos");
+        tiempoVueltas = savedInstanceState.getStringArrayList("tiempoVueltas");
+        contadorVueltas = savedInstanceState.getInt("contadorVueltas");
+        tiempoUltimaVuelta = savedInstanceState.getInt("tiempoUltimaVuelta", 0);
+        updateTimerDisplay();
     }
 }
-
